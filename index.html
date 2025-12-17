@@ -202,7 +202,25 @@
 
                 let csvContent = "\uFEFF"; 
                 csvContent += "Nhân viên,Email,Kênh,Mã màu,Tên hàng,Kênh SP,Giá,Giá cả,Chất liệu,Mẫu mã,Màu sắc,Size,Sell-in,Sell-out,Điểm TB,Nhận xét,Trạng thái,Ngày cập nhật\n";
-                const criteria = ['price', 'material', 'design', 'color', 'size', 'sellin', 'sellout'];
+                // --- ĐOẠN CODE MỚI: Đặt ngay sau các dòng khai báo useState ---
+    
+    // 1. Định nghĩa danh sách đầy đủ
+    const allCriteria = [
+        {k:'price',l:'Giá cả'},
+        {k:'material',l:'Chất liệu'},
+        {k:'design',l:'Mẫu mã'},
+        {k:'color',l:'Màu sắc'},
+        {k:'size',l:'Dải size'},
+        {k:'sellin',l:'Sell-in'},
+        {k:'sellout',l:'Sell-out'}
+    ];
+
+    // 2. Lọc bỏ 'sellin' nếu user là STORE hoặc ECOM
+    const activeCriteria = allCriteria.filter(c => {
+        if (c.k === 'sellin' && ['STORE', 'ECOM'].includes(user.salesChannel)) return false;
+        return true;
+    });
+    // -----------------------------------------------------------
 
                 for (const user of users) {
                     const reviewDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', periodId));
@@ -1064,40 +1082,49 @@
             }, []);
 
             const updateRating = (pid, k, v) => {
-                if(status === 'submitted') return;
-                setRatings(prev => {
-                    const pr = prev[pid] || { price:0, material:0, design:0, color:0, size:0, sellin:0, sellout:0, comment:'' };
-                    const newPr = { ...pr, [k]: v };
-                    const scores = [newPr.price, newPr.material, newPr.design, newPr.color, newPr.size, newPr.sellin, newPr.sellout].map(n=>n||0);
-                    newPr.average = (scores.reduce((a,b)=>a+(b||1),0)/7).toFixed(1);
-                    return { ...prev, [pid]: newPr };
-                });
-            };
+        if(status === 'submitted') return;
+        setRatings(prev => {
+            const pr = prev[pid] || {}; // Khởi tạo rỗng để tránh lỗi
+            const newPr = { ...pr, [k]: v };
+            
+            // Tính tổng điểm dựa trên các tiêu chí đang hiển thị
+            const totalScore = activeCriteria.reduce((sum, c) => sum + (newPr[c.k] || 0), 0);
+            
+            // Chia cho số lượng tiêu chí thực tế (6 hoặc 7)
+            newPr.average = (totalScore / activeCriteria.length).toFixed(1);
+            
+            return { ...prev, [pid]: newPr };
+        });
+    };
 
             const criteriaKeys = ['price', 'material', 'design', 'color', 'size', 'sellin', 'sellout'];
 
             const save = async (newStatus) => {
-                if (newStatus === 'submitted') {
-                    const missing = assignedProducts.filter(p => {
-                        const r = ratings[p.id];
-                        if (!r) return true;
-                        if (!r.comment || !r.comment.trim()) return true;
-                        const missingScore = criteriaKeys.some(k => !r[k]);
-                        if (missingScore) return true;
-                        return false;
-                    });
+        if (newStatus === 'submitted') {
+            const missing = assignedProducts.filter(p => {
+                const r = ratings[p.id];
+                if (!r) return true;
+                if (!r.comment || !r.comment.trim()) return true;
+                
+                // CHỈ kiểm tra các tiêu chí đang hiển thị (activeCriteria)
+                const missingScore = activeCriteria.some(c => !r[c.k]);
+                
+                if (missingScore) return true;
+                return false;
+            });
 
-                    if (missing.length > 0) return alert(`Bạn chưa hoàn thành ${missing.length} mã màu. \nVui lòng điền đủ tất cả các sao và nhận xét cho từng mã.`);
-                    if (!confirm("Nộp bài? Bạn sẽ không thể sửa sau khi nộp.")) return;
-                }
-                setSaving(true);
-                const now = new Date().toISOString();
-                try {
-                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', period.id), { status: newStatus, ratings, updatedAt: now }, { merge: true });
-                    setStatus(newStatus); setUpdatedAt(now);
-                    if (newStatus === 'submitted') { alert("Nộp thành công!"); onBack(); }
-                } catch(e) { alert("Lỗi: " + e.message); } finally { setSaving(false); }
-            };
+            if (missing.length > 0) return alert(`Bạn chưa hoàn thành ${missing.length} mã màu. \nVui lòng điền đủ tất cả các sao và nhận xét.`);
+            if (!confirm("Nộp bài? Bạn sẽ không thể sửa sau khi nộp.")) return;
+        }
+        // ... (phần còn lại của hàm save giữ nguyên)
+        setSaving(true);
+        const now = new Date().toISOString();
+        try {
+            await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', period.id), { status: newStatus, ratings, updatedAt: now }, { merge: true });
+            setStatus(newStatus); setUpdatedAt(now);
+            if (newStatus === 'submitted') { alert("Nộp thành công!"); onBack(); }
+        } catch(e) { alert("Lỗi: " + e.message); } finally { setSaving(false); }
+    };
 
             const isReadOnly = status === 'submitted';
             const completedCount = assignedProducts.filter(p => {
@@ -1153,12 +1180,12 @@
                                         </div>
                                         <div className="p-4 flex flex-col gap-3 bg-white flex-grow">
                                             <div className="space-y-2">
-                                                {criteria.map(c => (
-                                                    <div key={c.k} className="flex justify-between items-center text-xs">
-                                                        <span className="text-gray-400 font-semibold w-20 whitespace-nowrap overflow-hidden">{c.l}</span>
-                                                        <StarRating value={r[c.k]||0} onChange={v=>updateRating(p.id,c.k,v)} readOnly={isReadOnly} size={4}/>
-                                                    </div>
-                                                ))}
+                                               {activeCriteria.map(c => (
+        <div key={c.k} className="flex justify-between items-center text-xs">
+            <span className="text-gray-400 font-semibold w-20 whitespace-nowrap overflow-hidden">{c.l}</span>
+            <StarRating value={r[c.k]||0} onChange={v=>updateRating(p.id,c.k,v)} readOnly={isReadOnly} size={4}/>
+        </div>
+    ))}
                                             </div>
                                             <div className="mt-2 pt-3 border-t border-gray-100">
                                                 <textarea 
@@ -1386,5 +1413,6 @@
     </script>
 </body>
 </html>
+
 
 
