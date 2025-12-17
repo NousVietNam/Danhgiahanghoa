@@ -451,7 +451,7 @@
             return (
                 <div className="space-y-6">
                       <form onSubmit={handleSubmitUser} className="nous-card p-6 grid grid-cols-1 md:grid-cols-6 gap-4 items-end bg-[#fdfdfd]">
-                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Email</label><input type="email" required className="w-full nous-input p-2 text-sm" value={formUser.email} onChange={e=>setFormUser({...formUser, email: e.target.value})} /></div>
+                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Tên đăng nhập</label><input type="text" required className="w-full nous-input p-2 text-sm" value={formUser.email} onChange={e=>setFormUser({...formUser, email: e.target.value})} /></div>
                         <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Mật khẩu</label><input type="text" required className="w-full nous-input p-2 text-sm" value={formUser.password} onChange={e=>setFormUser({...formUser, password: e.target.value})} /></div>
                         <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Tên</label><input type="text" required className="w-full nous-input p-2 text-sm" value={formUser.name} onChange={e=>setFormUser({...formUser, name: e.target.value})} /></div>
                         <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Quyền</label><select className="w-full nous-input p-2 text-sm" value={formUser.role} onChange={e=>setFormUser({...formUser, role: e.target.value})}><option value="user">User</option><option value="admin">Admin</option></select></div>
@@ -1030,7 +1030,7 @@
                             <p className="text-xs uppercase tracking-widest text-gray-400 font-semibold">Đánh Giá Hàng Hóa</p>
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-5">
-                            <input type="email" required className="w-full nous-input p-3" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
+                            <input type="text" required className="w-full nous-input p-3" value={email} onChange={e => setEmail(e.target.value)} placeholder="Tên đăng nhập" />
                             <input type="password" required className="w-full nous-input p-3" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mật khẩu" />
                             {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl">{error}</div>}
                             <button type="submit" disabled={loading} className="w-full nous-btn-primary py-3 font-semibold flex justify-center">
@@ -1386,4 +1386,5 @@
     </script>
 </body>
 </html>
+
 
