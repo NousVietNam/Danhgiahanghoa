@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Đánh Giá - NOUS</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Quicksand', sans-serif; background-color: #fcfbf9; color: #4a4a4a; }
+        .font-body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        .spinner { border: 2px solid rgba(0,0,0,0.1); border-radius: 50%; border-top: 2px solid #d97706; width: 18px; height: 18px; animation: spin 0.8s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .nous-card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f3f4f6; transition: all 0.3s ease; }
+        .nous-btn-primary { background-color: #2d2d2d; color: white; border-radius: 9999px; transition: all 0.2s; }
+        .nous-btn-primary:hover { background-color: #000; transform: scale(1.02); }
+        .nous-btn-secondary { background-color: #f3f4f6; color: #4b5563; border-radius: 9999px; transition: all 0.2s; }
+        .nous-btn-secondary:hover { background-color: #e5e7eb; }
+        .nous-input { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s; }
+        .nous-input:focus { background-color: white; border-color: #d1d5db; box-shadow: 0 0 0 2px rgba(209, 213, 219, 0.3); outline: none; }
+        
+        /* Matrix Styles */
+        .matrix-table th { background-color: #f9fafb; color: #6b7280; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; padding: 12px; border-bottom: 1px solid #e5e7eb; white-space: nowrap; position: sticky; top: 0; z-index: 10; }
+        .matrix-table td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.875rem; color: #374151; white-space: nowrap; }
+        .matrix-table tr:hover td { background-color: #fdfbf7; }
+        
+        /* Checkbox Custom */
+        input[type="checkbox"] { accent-color: #2d2d2d; width: 16px; height: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getFirestore, doc, setDoc, getDoc, addDoc, updateDoc, collection, 
+            query, where, getDocs, onSnapshot, deleteDoc, deleteField, writeBatch 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyChzzIyry-bAqMhwa2dqVChrDu55B6NVFc",
+            authDomain: "product-review-nous.firebaseapp.com",
+            projectId: "product-review-nous",
+            storageBucket: "product-review-nous.firebasestorage.app",
+            messagingSenderId: "376154895036",
+            appId: "1:376154895036:web:6f88c7205993193d6d56b9",
+            measurementId: "G-330K88KRQN"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const appId = 'nous-web-app-v1'; 
+
+        const Icons = {
+            Loader2: ({ className }) => <div className={`spinner ${className}`}></div>,
+            Upload: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
+            FileSpreadsheet: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>,
+            LogOut: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>,
+            Save: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
+            Send: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+            CheckCircle: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+            ChevronLeft: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size||24} height={size||24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>,
+            Users: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+            Trash2: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+            Edit: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+            Plus: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+            Clock: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            Package: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+            X: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+            AlertTriangle: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+            Download: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+            RotateCcw: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>,
+            RefreshCw: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>,
+            LayoutGrid: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>,
+            BarChart2: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>,
+            Search: ({ size }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        };
+
+        const { useState, useEffect } = React;
+
+        const formatDate = (isoString) => {
+            if (!isoString) return '';
+            const d = new Date(isoString);
+            return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        };
+
+        // --- CSV PARSER ---
+        const parseCSV = (text) => {
+            let lines = text.trim().split(/\r\n|\n/);
+            if (lines.length < 2) return [];
+            const firstLine = lines[0];
+            const delimiter = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ';' : ',';
+            const findCol = (headers, keys) => {
+                const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+                for (const k of keys) {
+                    const idx = lowerHeaders.findIndex(h => h.includes(k));
+                    if (idx !== -1) return idx;
+                }
+                return -1;
+            };
+            const rawHeaders = firstLine.split(delimiter).map(h => h.replace(/^"|"$/g, '').trim());
+            const colMap = {
+                id: findCol(rawHeaders, ['mã màu', 'ma mau', 'color code', 'style']),
+                name: findCol(rawHeaders, ['tên hàng', 'product name', 'tên']),
+                price: findCol(rawHeaders, ['giá', 'price']),
+                link: findCol(rawHeaders, ['link', 'image', 'ảnh']),
+                channel: findCol(rawHeaders, ['kênh', 'channel']),
+                brand: findCol(rawHeaders, ['brand', 'thương hiệu']),
+                note: findCol(rawHeaders, ['note', 'ghi chú'])
+            };
+            
+            const productMap = new Map();
+            const sizeRegex = /\s*(Size\s*(\d+|S|M|L|XL|XXL)|(NB|FS|\d{1,2}[MY])(\s*-\s*\d{1,2}[MY])?)\s*$/i;
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+                const values = [];
+                let inQuote = false; let val = '';
+                for(let c of line) {
+                    if(c === '"') { inQuote = !inQuote; }
+                    else if(c === delimiter && !inQuote) { values.push(val); val = ''; }
+                    else { val += c; }
+                }
+                values.push(val);
+                const clean = (v) => v ? v.replace(/^"|"$/g, '').trim() : '';
+                
+                if (values[colMap.id]) {
+                    const id = clean(values[colMap.id]);
+                    if (id && !productMap.has(id)) {
+                        let name = clean(values[colMap.name]);
+                        name = name.replace(sizeRegex, '').trim();
+                        let channel = clean(values[colMap.channel]).toUpperCase();
+                        if (!['GT', 'STORE', 'ECOM'].includes(channel)) channel = 'CHUNG';
+
+                        productMap.set(id, {
+                            id: id, 
+                            name: name, 
+                            price: clean(values[colMap.price]), 
+                            link: clean(values[colMap.link]),
+                            channel: channel,
+                            brand: clean(values[colMap.brand]),
+                            note: clean(values[colMap.note])
+                        });
+                    }
+                }
+            }
+            return Array.from(productMap.values());
+        };
+
+        const StarRating = ({ value, onChange, readOnly = false, size = 4 }) => {
+            const [hover, setHover] = useState(0);
+            return (
+                <div className="flex gap-0.5 flex-shrink-0" onMouseLeave={() => !readOnly && setHover(0)}>
+                    {[...Array(10)].map((_, i) => (
+                        <svg key={i} onClick={() => !readOnly && onChange(i+1)} onMouseEnter={() => !readOnly && setHover(i+1)} className={`w-${size} h-${size} ${readOnly ? 'flex-shrink-0' : 'cursor-pointer transition-transform duration-100 hover:scale-110'}`} viewBox="0 0 24 24" fill={i+1 <= (hover || value) ? "#fbbf24" : "#e5e7eb"} stroke="none">
+                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                        </svg>
+                    ))}
+                </div>
+            );
+        };
+
+        const ImageModal = ({ src, onClose }) => {
+            if (!src) return null;
+            return (
+                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in" onClick={onClose}>
+                    <img src={src} className="max-w-full max-h-full object-contain select-none rounded-lg shadow-2xl" onContextMenu={e => e.preventDefault()} />
+                    <button className="absolute top-6 right-6 text-white bg-white/10 p-2 rounded-full hover:bg-white/20 transition-colors"><Icons.X size={24}/></button>
+                </div>
+            );
+        };
+
+        const exportToCSV = async (periodId, targetUid) => {
+            try {
+                const masterDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master_data', periodId));
+                if (!masterDoc.exists()) throw new Error("Không tìm thấy dữ liệu tháng này.");
+                const products = masterDoc.data().products;
+
+                let users = [];
+                if (targetUid === 'all') {
+                    const uSnap = await getDocs(query(collection(db, 'artifacts', appId, 'users'), where('role', '==', 'user')));
+                    users = uSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                } else {
+                    const uDoc = await getDoc(doc(db, 'artifacts', appId, 'users', targetUid));
+                    if(uDoc.exists()) users = [{ uid: uDoc.id, ...uDoc.data() }];
+                }
+
+                let csvContent = "\uFEFF"; 
+                csvContent += "Nhân viên,Email,Kênh,Mã màu,Tên hàng,Kênh SP,Giá,Giá cả,Chất liệu,Mẫu mã,Màu sắc,Size,Sell-in,Sell-out,Điểm TB,Nhận xét,Trạng thái,Ngày cập nhật\n";
+                const criteria = ['price', 'material', 'design', 'color', 'size', 'sellin', 'sellout'];
+
+                for (const user of users) {
+                    const reviewDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', periodId));
+                    if (reviewDoc.exists()) {
+                        const rData = reviewDoc.data();
+                        if (rData.status !== 'submitted') continue;
+                        const ratings = rData.ratings || {};
+                        const status = 'Đã nộp';
+                        const updated = rData.updatedAt ? new Date(rData.updatedAt).toLocaleString('vi-VN') : '';
+
+                        for (const p of products) {
+                            const r = ratings[p.id] || {};
+                            if (!r.average) continue; 
+
+                            const scores = criteria.map(k => r[k] || '').join(",");
+                            const comment = r.comment ? `"${r.comment.replace(/"/g, '""')}"` : "";
+                            const row = [
+                                `"${user.name}"`, user.email, user.salesChannel, `"${p.id}"`, `"${p.name}"`, p.channel, p.price,
+                                scores, r.average || '', comment, status, updated
+                            ].join(",");
+                            csvContent += row + "\n";
+                        }
+                    }
+                }
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `Danh_gia_${periodId}_${targetUid === 'all' ? 'All' : targetUid}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) { alert("Lỗi xuất file: " + e.message); }
+        };
+
+        // --- ADMIN PRODUCT ANALYTICS (FIXED: Load both draft & submitted) ---
+        const AdminProductAnalytics = () => {
+            const [periods, setPeriods] = useState([]);
+            const [selectedPeriod, setSelectedPeriod] = useState(null);
+            const [products, setProducts] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [searchTerm, setSearchTerm] = useState("");
+            const [aggregatedReviews, setAggregatedReviews] = useState({});
+            const [selectedProduct, setSelectedProduct] = useState(null);
+
+            useEffect(() => {
+                getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'master_data')).then(snap => {
+                    const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.year - a.year) || (b.month - a.month));
+                    setPeriods(data);
+                    if(data.length > 0) setSelectedPeriod(data[0].id);
+                });
+            }, []);
+
+            useEffect(() => {
+                if(!selectedPeriod) return;
+                setLoading(true);
+                const loadData = async () => {
+                    const masterDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master_data', selectedPeriod));
+                    const pList = masterDoc.data().products || [];
+                    setProducts(pList);
+
+                    const usersSnap = await getDocs(query(collection(db, 'artifacts', appId, 'users'), where('role', '==', 'user')));
+                    const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+
+                    const aggregation = {};
+
+                    await Promise.all(users.map(async (u) => {
+                        const rDoc = await getDoc(doc(db, 'artifacts', appId, 'users', u.uid, 'reviews', selectedPeriod));
+                        if(rDoc.exists()) {
+                            const rData = rDoc.data();
+                            // MODIFIED: Fetch BOTH submitted and draft
+                            if((rData.status === 'submitted' || rData.status === 'draft') && rData.ratings) {
+                                Object.keys(rData.ratings).forEach(pid => {
+                                    const rating = rData.ratings[pid];
+                                    if(rating.average) {
+                                        if(!aggregation[pid]) aggregation[pid] = [];
+                                        aggregation[pid].push({
+                                            user: u,
+                                            ratings: rating,
+                                            updatedAt: rData.updatedAt
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    }));
+                    setAggregatedReviews(aggregation);
+                    setLoading(false);
+                };
+                loadData();
+            }, [selectedPeriod]);
+
+            const getGlobalAverage = (pid) => {
+                const reviews = aggregatedReviews[pid] || [];
+                if(reviews.length === 0) return 0;
+                const sum = reviews.reduce((acc, curr) => acc + parseFloat(curr.ratings.average || 0), 0);
+                return (sum / reviews.length).toFixed(1);
+            };
+
+            const filteredProducts = products.filter(p => 
+                p.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                p.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            const ProductDetailModal = ({ product, reviews, onClose }) => {
+                const criteria = [{k:'price',l:'Giá cả'},{k:'material',l:'Chất liệu'},{k:'design',l:'Mẫu mã'},{k:'color',l:'Màu sắc'},{k:'size',l:'Kích cỡ'},{k:'sellin',l:'Sell-in'},{k:'sellout',l:'Sell-out'}];
+                
+                return (
+                    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+                            <div className="p-6 border-b flex justify-between items-start bg-gray-50">
+                                <div className="flex gap-4">
+                                    <img src={product.link} className="w-24 h-24 object-cover rounded-lg border bg-white" />
+                                    <div>
+                                        <h3 className="font-bold text-xl text-gray-800">{product.id}</h3>
+                                        <p className="text-sm text-gray-600 mb-2">{product.name}</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-bold border border-yellow-200 shadow-sm">
+                                                TB: {getGlobalAverage(product.id)} ★
+                                            </span>
+                                            <span className="text-sm text-gray-500">({reviews.length} đánh giá)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition"><Icons.X size={24}/></button>
+                            </div>
+                            
+                            <div className="flex-1 overflow-auto p-0">
+                                <table className="w-full text-sm text-left border-collapse">
+                                    <thead className="bg-white text-gray-500 font-bold text-xs uppercase sticky top-0 shadow-sm z-10">
+                                        <tr>
+                                            <th className="p-4 border-b">Nhân viên</th>
+                                            <th className="p-4 border-b text-center w-16">TB</th>
+                                            {criteria.map(c => <th key={c.k} className="p-4 border-b text-center w-12">{c.l}</th>)}
+                                            <th className="p-4 border-b">Nhận xét</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {reviews.map((r, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50/80 transition">
+                                                <td className="p-4">
+                                                    <div className="font-bold text-gray-800">{r.user.name}</div>
+                                                    <div className="text-[10px] text-gray-500 bg-gray-100 inline-block px-1.5 rounded mt-1">{r.user.salesChannel}</div>
+                                                </td>
+                                                <td className="p-4 text-center font-bold text-yellow-600 border-x border-gray-50 bg-yellow-50/30">{r.ratings.average}</td>
+                                                {criteria.map(c => (
+                                                    <td key={c.k} className="p-4 text-center text-gray-600 border-r border-gray-50/50">{r.ratings[c.k]}</td>
+                                                ))}
+                                                <td className="p-4 text-gray-600 italic max-w-md bg-gray-50/30">{r.ratings.comment || "-"}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {reviews.length === 0 && <div className="p-10 text-center text-gray-400">Chưa có đánh giá nào cho sản phẩm này.</div>}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            if(loading) return <div className="p-20 flex justify-center"><Icons.Loader2 /></div>;
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-wrap gap-4">
+                         <div className="flex items-center gap-3">
+                            <label className="text-sm font-bold text-gray-500">Kỳ đánh giá:</label>
+                            <select className="bg-gray-50 border rounded-lg p-2 text-sm font-bold" value={selectedPeriod || ''} onChange={e=>setSelectedPeriod(e.target.value)}>{periods.map(p => <option key={p.id} value={p.id}>Tháng {p.month}/{p.year}</option>)}</select>
+                        </div>
+                        <div className="relative">
+                            <Icons.Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+                            <input 
+                                type="text" 
+                                placeholder="Tìm theo tên, mã..." 
+                                className="pl-9 pr-4 py-2 border rounded-full text-sm w-64 focus:outline-none focus:ring-2 ring-gray-200"
+                                value={searchTerm}
+                                onChange={e=>setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        {filteredProducts.map(p => {
+                            const avg = getGlobalAverage(p.id);
+                            const count = (aggregatedReviews[p.id] || []).length;
+                            return (
+                                <div key={p.id} onClick={() => setSelectedProduct(p)} className="nous-card overflow-hidden cursor-pointer group hover:shadow-lg hover:border-blue-200 transition-all">
+                                    <div className="aspect-square bg-gray-100 relative overflow-hidden">
+                                        <img src={p.link} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"/>
+                                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur text-yellow-700 font-bold px-2 py-1 rounded shadow text-xs flex items-center gap-1">
+                                            {avg} ★
+                                        </div>
+                                    </div>
+                                    <div className="p-3">
+                                        <div className="font-bold text-gray-800 text-sm truncate">{p.id}</div>
+                                        <div className="text-xs text-gray-500 truncate mb-2">{p.name}</div>
+                                        <div className="flex justify-between items-center border-t pt-2 mt-2">
+                                            <span className="text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-600">{p.channel}</span>
+                                            <span className="text-[10px] text-gray-400">{count} bài</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                    {filteredProducts.length === 0 && <div className="text-center py-20 text-gray-400">Không tìm thấy sản phẩm.</div>}
+                    
+                    {selectedProduct && (
+                        <ProductDetailModal 
+                            product={selectedProduct} 
+                            reviews={aggregatedReviews[selectedProduct.id] || []} 
+                            onClose={()=>setSelectedProduct(null)} 
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        const AdminUsers = () => {
+             const [users, setUsers] = useState([]);
+            const [formUser, setFormUser] = useState({ email: '', password: '', name: '', role: 'user', salesChannel: 'GT' });
+            const [editingId, setEditingId] = useState(null);
+            const [loading, setLoading] = useState(false);
+
+            useEffect(() => {
+                const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'users')), (snap) => setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() }))));
+                return () => unsub();
+            }, []);
+
+            const handleSubmitUser = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    if (editingId) {
+                         await updateDoc(doc(db, 'artifacts', appId, 'users', editingId), { ...formUser, updatedAt: new Date().toISOString() });
+                    } else {
+                        await addDoc(collection(db, 'artifacts', appId, 'users'), { ...formUser, createdAt: new Date().toISOString() });
+                    }
+                    setFormUser({ email: '', password: '', name: '', role: 'user', salesChannel: 'GT' });
+                    setEditingId(null);
+                } catch (e) { alert("Lỗi: " + e.message); } finally { setLoading(false); }
+            };
+            
+            const handleDeleteUser = async (uid) => { if(confirm("Xóa user này?")) await deleteDoc(doc(db, 'artifacts', appId, 'users', uid)); };
+
+            return (
+                <div className="space-y-6">
+                      <form onSubmit={handleSubmitUser} className="nous-card p-6 grid grid-cols-1 md:grid-cols-6 gap-4 items-end bg-[#fdfdfd]">
+                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Email</label><input type="email" required className="w-full nous-input p-2 text-sm" value={formUser.email} onChange={e=>setFormUser({...formUser, email: e.target.value})} /></div>
+                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Mật khẩu</label><input type="text" required className="w-full nous-input p-2 text-sm" value={formUser.password} onChange={e=>setFormUser({...formUser, password: e.target.value})} /></div>
+                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Tên</label><input type="text" required className="w-full nous-input p-2 text-sm" value={formUser.name} onChange={e=>setFormUser({...formUser, name: e.target.value})} /></div>
+                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Quyền</label><select className="w-full nous-input p-2 text-sm" value={formUser.role} onChange={e=>setFormUser({...formUser, role: e.target.value})}><option value="user">User</option><option value="admin">Admin</option></select></div>
+                        <div className="col-span-1"><label className="text-xs font-bold text-gray-500 mb-1 block">Kênh Bán</label><select className="w-full nous-input p-2 text-sm" value={formUser.salesChannel} onChange={e=>setFormUser({...formUser, salesChannel: e.target.value})}><option value="GT">GT</option><option value="STORE">Store</option><option value="ECOM">Ecom</option><option value="ALL">All</option></select></div>
+                        <div className="col-span-1 flex gap-2"><button type="submit" disabled={loading} className="flex-1 nous-btn-primary p-2 text-sm">{editingId ? 'Lưu' : 'Thêm'}</button>{editingId && <button type="button" onClick={()=>{setEditingId(null); setFormUser({ email: '', password: '', name: '', role: 'user', salesChannel: 'GT' })}} className="nous-btn-secondary px-3 text-xs">Hủy</button>}</div>
+                    </form>
+                    <div className="nous-card overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs"><tr><th className="p-4">Email</th><th className="p-4">Mật khẩu</th><th className="p-4">Tên</th><th className="p-4">Quyền</th><th className="p-4">Kênh</th><th className="p-4 text-right"></th></tr></thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {users.map(u => (
+                                    <tr key={u.uid} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="p-4 font-medium">{u.email}</td><td className="p-4 font-mono text-gray-400">{u.password}</td><td className="p-4">{u.name}</td>
+                                        <td className="p-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${u.role==='admin'?'bg-purple-100 text-purple-700':'bg-blue-50 text-blue-600'}`}>{u.role}</span></td>
+                                        <td className="p-4 text-xs font-bold text-gray-600">{u.salesChannel || 'GT'}</td>
+                                        <td className="p-4 text-right flex justify-end gap-2"><button onClick={() => {setFormUser(u); setEditingId(u.uid)}} className="text-blue-500 p-1 hover:bg-blue-50 rounded"><Icons.Edit size={16}/></button><button onClick={() => handleDeleteUser(u.uid)} className="text-red-500 p-1 hover:bg-red-50 rounded"><Icons.Trash2 size={16}/></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminAssignment = () => {
+            const [periods, setPeriods] = useState([]);
+            const [selectedPeriod, setSelectedPeriod] = useState(null);
+            const [matrixData, setMatrixData] = useState({ products: [], users: [], assignments: {} });
+            const [loading, setLoading] = useState(false);
+            const [saving, setSaving] = useState(false);
+
+            useEffect(() => {
+                getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'master_data')).then(snap => {
+                    const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.year - a.year) || (b.month - a.month));
+                    setPeriods(data);
+                    if(data.length > 0) setSelectedPeriod(data[0].id);
+                });
+            }, []);
+
+            useEffect(() => {
+                if(!selectedPeriod) return;
+                setLoading(true);
+                const loadData = async () => {
+                    const masterDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master_data', selectedPeriod));
+                    const masterData = masterDoc.data();
+                    const usersSnap = await getDocs(query(collection(db, 'artifacts', appId, 'users'), where('role', '==', 'user')));
+                    const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                    
+                    let currentAssignments = masterData.assignments || {};
+                    
+                    if (Object.keys(currentAssignments).length === 0) {
+                        users.forEach(u => {
+                            const uChannel = u.salesChannel || 'GT';
+                            const assignedProducts = masterData.products.filter(p => {
+                                const pChannel = p.channel || 'CHUNG';
+                                if (pChannel === 'CHUNG') return true;
+                                if (uChannel === 'ALL') return true;
+                                return pChannel === uChannel;
+                            }).map(p => p.id);
+                            currentAssignments[u.uid] = assignedProducts;
+                        });
+                    }
+
+                    setMatrixData({ products: masterData.products, users, assignments: currentAssignments });
+                    setLoading(false);
+                };
+                loadData();
+            }, [selectedPeriod]);
+
+            const toggleAssignment = (uid, pid) => {
+                const userAssigns = matrixData.assignments[uid] || [];
+                const newAssigns = userAssigns.includes(pid) 
+                    ? userAssigns.filter(id => id !== pid) 
+                    : [...userAssigns, pid];
+                
+                setMatrixData(prev => ({
+                    ...prev,
+                    assignments: { ...prev.assignments, [uid]: newAssigns }
+                }));
+            };
+
+            const handleAutoAssign = () => {
+                if(!confirm("Hành động này sẽ XÓA các tích chọn thủ công hiện tại trên màn hình và TÍCH LẠI theo quy tắc Kênh (GT-GT, Store-Store...). Bạn có chắc chắn?")) return;
+                
+                const newAssignments = {};
+                matrixData.users.forEach(u => {
+                    const uChannel = u.salesChannel || 'GT';
+                    newAssignments[u.uid] = matrixData.products.filter(p => {
+                        const pChannel = p.channel || 'CHUNG';
+                        if (pChannel === 'CHUNG') return true;
+                        if (uChannel === 'ALL') return true;
+                        return pChannel === uChannel;
+                    }).map(p => p.id);
+                });
+
+                setMatrixData(prev => ({ ...prev, assignments: newAssignments }));
+                alert("Đã phân công lại theo quy tắc. Vui lòng nhấn 'Lưu Phân Chia' để ghi nhận.");
+            };
+
+            const handleSave = async () => {
+                setSaving(true);
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master_data', selectedPeriod), {
+                        assignments: matrixData.assignments
+                    });
+
+                    const cleanupPromises = matrixData.users.map(async (u) => {
+                        const assignedIds = matrixData.assignments[u.uid] || [];
+                        const reviewRef = doc(db, 'artifacts', appId, 'users', u.uid, 'reviews', selectedPeriod);
+                        const reviewDoc = await getDoc(reviewRef);
+                        
+                        if(reviewDoc.exists()) {
+                            const currentRatings = reviewDoc.data().ratings || {};
+                            const updates = {};
+                            let hasUpdates = false;
+                            
+                            Object.keys(currentRatings).forEach(pid => {
+                                if(!assignedIds.includes(pid)) {
+                                    updates[`ratings.${pid}`] = deleteField();
+                                    hasUpdates = true;
+                                }
+                            });
+
+                            if(hasUpdates) {
+                                await updateDoc(reviewRef, updates);
+                            }
+                        }
+                    });
+                    
+                    await Promise.all(cleanupPromises);
+                    alert("Đã lưu phân chia và cập nhật dữ liệu!");
+                } catch(e) { alert("Lỗi: " + e.message); } finally { setSaving(false); }
+            };
+
+            if(loading) return <div className="p-20 flex justify-center"><Icons.Loader2 /></div>;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex-wrap gap-4">
+                        <div className="flex items-center gap-3">
+                            <label className="text-sm font-bold text-gray-500">Kỳ đánh giá:</label>
+                            <select className="bg-gray-50 border rounded-lg p-2 text-sm font-bold" value={selectedPeriod || ''} onChange={e=>setSelectedPeriod(e.target.value)}>{periods.map(p => <option key={p.id} value={p.id}>Tháng {p.month}/{p.year}</option>)}</select>
+                        </div>
+                        <div className="flex gap-2">
+                             <button onClick={handleAutoAssign} disabled={saving} className="nous-btn-secondary px-4 py-2 text-sm font-bold flex items-center gap-2 hover:bg-orange-100 text-orange-700">
+                                <Icons.RefreshCw size={16}/> Tự động phân lại
+                            </button>
+                            <button onClick={handleSave} disabled={saving} className="nous-btn-primary px-6 py-2 text-sm font-bold flex items-center gap-2">
+                                {saving ? <Icons.Loader2 /> : <Icons.Save size={16}/>} Lưu Phân Chia
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="nous-card p-0 overflow-hidden">
+                        <div className="max-h-[600px] overflow-auto relative">
+                            <table className="matrix-table w-full">
+                                <thead>
+                                    <tr>
+                                        <th className="bg-gray-100 z-20 left-0 sticky min-w-[250px]">Sản Phẩm</th>
+                                        <th className="bg-gray-100 z-10 sticky top-0 text-center min-w-[80px]">Kênh</th>
+                                        {matrixData.users.map(u => (
+                                            <th key={u.uid} className="text-center min-w-[100px]">
+                                                <div>{u.name}</div>
+                                                <div className="text-[9px] font-normal text-gray-500">{u.salesChannel}</div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {matrixData.products.map(p => (
+                                        <tr key={p.id}>
+                                            <td className="sticky left-0 bg-white border-r z-10 font-medium">
+                                                <div className="text-gray-800">{p.id}</div>
+                                                <div className="text-[10px] text-gray-500 truncate max-w-[200px]" title={p.name}>{p.name}</div>
+                                                <div className="text-[9px] text-blue-500">{p.brand}</div>
+                                            </td>
+                                            <td className="text-center"><span className={`text-[10px] font-bold px-2 py-1 rounded ${p.channel==='CHUNG'?'bg-purple-100 text-purple-700': p.channel==='GT'?'bg-blue-100 text-blue-700': p.channel==='STORE'?'bg-green-100 text-green-700':'bg-orange-100 text-orange-700'}`}>{p.channel}</span></td>
+                                            {matrixData.users.map(u => {
+                                                const isAssigned = (matrixData.assignments[u.uid] || []).includes(p.id);
+                                                return (
+                                                    <td key={u.uid} className="text-center">
+                                                        <input type="checkbox" checked={isAssigned} onChange={() => toggleAssignment(u.uid, p.id)} />
+                                                    </td>
+                                                )
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminUpload = () => {
+            const [year, setYear] = useState(new Date().getFullYear());
+            const [month, setMonth] = useState(new Date().getMonth() + 1);
+            const [file, setFile] = useState(null);
+            const [uploading, setUploading] = useState(false);
+            const [msg, setMsg] = useState(null);
+            const [history, setHistory] = useState([]);
+
+            const fetchHistory = async () => {
+                const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'master_data'));
+                const list = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => (b.year - a.year) || (b.month - a.month));
+                setHistory(list);
+            };
+
+            useEffect(() => {
+                fetchHistory();
+            }, []);
+
+            const handleUpload = async () => {
+                if (!file) return;
+                setUploading(true); setMsg(null);
+                try {
+                    const docId = `${year}_${month}`;
+                    const masterRef = doc(db, 'artifacts', appId, 'public', 'data', 'master_data', docId);
+                    const masterSnap = await getDoc(masterRef);
+                    if (masterSnap.exists()) {
+                        if (!confirm(`Dữ liệu tháng ${month}/${year} ĐÃ CÓ. Ghi đè sẽ XÓA TOÀN BỘ đánh giá cũ. Tiếp tục?`)) { setUploading(false); return; }
+                    }
+                    const text = await file.text();
+                    const products = parseCSV(text);
+                    
+                    const usersSnap = await getDocs(query(collection(db, 'artifacts', appId, 'users'), where('role', '==', 'user')));
+                    const assignments = {};
+                    usersSnap.forEach(doc => {
+                        const u = doc.data();
+                        const uChannel = u.salesChannel || 'GT';
+                        assignments[doc.id] = products.filter(p => {
+                            const pChannel = p.channel || 'CHUNG';
+                            if (pChannel === 'CHUNG') return true;
+                            if (uChannel === 'ALL') return true;
+                            return pChannel === uChannel;
+                        }).map(p => p.id);
+                    });
+
+                    await setDoc(masterRef, { year, month, products, assignments, updatedAt: new Date().toISOString(), totalProducts: products.length });
+                    setMsg({ type: 'success', text: `Đã lưu ${products.length} mã màu & khởi tạo phân công.` });
+                    fetchHistory();
+                } catch (err) { setMsg({ type: 'error', text: err.message }); } finally { setUploading(false); }
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto space-y-8">
+                    <div className="max-w-xl mx-auto space-y-6">
+                        <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-xl text-sm text-yellow-800 flex gap-3 items-start">
+                            <Icons.AlertTriangle size={20} className="mt-0.5 flex-shrink-0" />
+                            <div><strong>Lưu ý:</strong> File CSV cần cột "Mã màu", "Kênh". Hệ thống sẽ tự động phân công theo kênh khi tải lên.</div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="block text-xs font-bold mb-1 text-gray-500">Năm</label><select value={year} onChange={e=>setYear(e.target.value)} className="w-full nous-input p-3">{[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}</select></div>
+                            <div><label className="block text-xs font-bold mb-1 text-gray-500">Tháng</label><select value={month} onChange={e=>setMonth(e.target.value)} className="w-full nous-input p-3">{[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>Tháng {i+1}</option>)}</select></div>
+                        </div>
+                        <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center relative hover:bg-gray-50 transition-colors bg-white">
+                            <input type="file" accept=".csv" onChange={e=>setFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"/>
+                            <Icons.Upload size={32} className="mx-auto text-gray-300 mb-3" />
+                            <p className="text-sm font-medium text-gray-500">{file ? file.name : "Kéo thả hoặc chọn file CSV"}</p>
+                        </div>
+                        <button onClick={handleUpload} disabled={!file || uploading} className="w-full nous-btn-primary py-3 font-bold disabled:opacity-50">{uploading ? 'Đang xử lý...' : 'Lưu Dữ Liệu'}</button>
+                        {msg && <div className={`p-3 rounded-lg text-sm text-center font-bold ${msg.type==='error'?'bg-red-50 text-red-600':'bg-green-50 text-green-600'}`}>{msg.text}</div>}
+                    </div>
+
+                    <div className="border-t pt-8">
+                        <h3 className="font-bold text-lg text-gray-800 mb-4">Lịch Sử Dữ Liệu</h3>
+                        <div className="nous-card overflow-hidden">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 text-gray-600 font-semibold uppercase text-xs">
+                                    <tr>
+                                        <th className="p-4">Kỳ đánh giá</th>
+                                        <th className="p-4">Ngày cập nhật</th>
+                                        <th className="p-4 text-center">Số lượng SP</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {history.length === 0 ? (
+                                        <tr><td colSpan="3" className="p-8 text-center text-gray-400">Chưa có dữ liệu nào</td></tr>
+                                    ) : history.map(h => (
+                                        <tr key={h.id} className="hover:bg-gray-50/50">
+                                            <td className="p-4 font-bold text-gray-800">Tháng {h.month}, {h.year}</td>
+                                            <td className="p-4 text-gray-500 font-mono text-xs">{formatDate(h.updatedAt)}</td>
+                                            <td className="p-4 text-center">
+                                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">{h.totalProducts}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminDashboard = ({ user, onLogout }) => {
+            const [activeTab, setActiveTab] = useState('matrix');
+            const [detailView, setDetailView] = useState(null);
+
+            const Tab = ({ id, icon, label }) => (
+                <button onClick={() => { setActiveTab(id); setDetailView(null); }} className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold transition-all text-sm ${activeTab===id && !detailView ? 'bg-[#2d2d2d] text-white shadow-lg transform scale-105' : 'bg-white text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>
+                    {icon} {label}
+                </button>
+            );
+
+            return (
+                <div className="container mx-auto p-6 max-w-7xl">
+                    <header className="flex justify-between items-center mb-8">
+                        <div><h1 className="font-bold text-2xl text-gray-800 tracking-tight">Quản lý đánh giá sản phẩm</h1><p className="text-sm text-gray-500">Xin chào, {user.name} ({user.email})</p></div>
+                        <button onClick={onLogout} className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-full text-sm font-bold border border-red-100 transition-colors">Đăng xuất</button>
+                    </header>
+                    <div className="flex gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                        <Tab id="matrix" icon={<Icons.FileSpreadsheet size={16}/>} label="Tiến độ đánh giá" />
+                        <Tab id="products" icon={<Icons.BarChart2 size={16}/>} label="Phân tích SP" />
+                        <Tab id="assignment" icon={<Icons.LayoutGrid size={16}/>} label="Phân chia mã theo kênh" />
+                        <Tab id="upload" icon={<Icons.Upload size={16}/>} label="Dữ liệu nguồn" />
+                        <Tab id="users" icon={<Icons.Users size={16}/>} label="Quản lý User" />
+                    </div>
+                    <div>
+                        {detailView ? (
+                            <AdminReviewViewer targetUser={detailView.user} periodId={detailView.periodId} onBack={()=>setDetailView(null)} />
+                        ) : (
+                            <>
+                                {activeTab === 'assignment' && <AdminAssignment />}
+                                {activeTab === 'products' && <AdminProductAnalytics />}
+                                {activeTab === 'matrix' && <AdminMatrix onViewDetail={(u, p) => setDetailView({user: u, periodId: p})} />}
+                                {activeTab === 'upload' && <AdminUpload />}
+                                {activeTab === 'users' && <AdminUsers />}
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const AdminMatrix = ({ onViewDetail }) => {
+            const [matrix, setMatrix] = useState([]);
+            const [periods, setPeriods] = useState([]);
+            const [users, setUsers] = useState([]);
+            const [exportPeriod, setExportPeriod] = useState("");
+            const [exportUser, setExportUser] = useState("all");
+            const [downloading, setDownloading] = useState(false);
+
+            useEffect(() => {
+                const fetchData = async () => {
+                    const masterSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'master_data'));
+                    const availablePeriods = masterSnap.docs.map(d => ({id: d.id, total: d.data().totalProducts})).sort();
+                    setPeriods(availablePeriods);
+                    if(availablePeriods.length > 0) setExportPeriod(availablePeriods[0].id);
+
+                    const usersSnap = await getDocs(query(collection(db, 'artifacts', appId, 'users'), where('role', '==', 'user')));
+                    const userList = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                    setUsers(userList);
+
+                    const rows = await Promise.all(userList.map(async (user) => {
+                        const rowData = { user };
+                        for (const p of availablePeriods) {
+                            const reviewSnap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', p.id));
+                            rowData[p.id] = reviewSnap.exists() ? reviewSnap.data() : null;
+                        }
+                        return rowData;
+                    }));
+                    setMatrix(rows);
+                };
+                fetchData();
+            }, []);
+
+            const handleExport = async () => {
+                if(!exportPeriod) return;
+                setDownloading(true);
+                await exportToCSV(exportPeriod, exportUser);
+                setDownloading(false);
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase text-gray-500">Xuất Báo Cáo CSV (Đã Nộp):</span>
+                            <select value={exportPeriod} onChange={e=>setExportPeriod(e.target.value)} className="text-sm border rounded-lg p-2 bg-gray-50">
+                                {periods.map(p => <option key={p.id} value={p.id}>{p.id}</option>)}
+                            </select>
+                            <select value={exportUser} onChange={e=>setExportUser(e.target.value)} className="text-sm border rounded-lg p-2 bg-gray-50">
+                                <option value="all">Tất cả nhân viên</option>
+                                {users.map(u => <option key={u.uid} value={u.uid}>{u.name}</option>)}
+                            </select>
+                        </div>
+                        <button onClick={handleExport} disabled={downloading} className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 disabled:opacity-50">
+                            {downloading ? <Icons.Loader2 /> : <Icons.Download size={16}/>} Tải về
+                        </button>
+                    </div>
+
+                    <div className="nous-card overflow-x-auto">
+                        <table className="w-full text-sm border-collapse">
+                            <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold"><tr><th className="p-4 text-left border-b">Nhân viên</th>{periods.map(p => <th key={p.id} className="p-4 border-b text-center min-w-[140px]">{p.id}</th>)}</tr></thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {matrix.map((row, i) => (
+                                    <tr key={i} className="hover:bg-gray-50/50">
+                                        <td className="p-4 border-r border-gray-50 font-medium text-gray-800 bg-white sticky left-0">{row.user.name}<br/><span className="text-xs text-gray-400 font-normal">{row.user.email}</span></td>
+                                        {periods.map(p => {
+                                            const review = row[p.id];
+                                            const status = review ? review.status : 'none';
+                                            const count = review && review.ratings ? Object.keys(review.ratings).length : 0;
+                                            return (
+                                                <td key={p.id} className="p-4 text-center cursor-pointer hover:bg-blue-50/30 transition-colors border-r border-gray-50 border-dashed" onClick={() => onViewDetail(row.user, p.id)}>
+                                                    {status==='submitted'?<span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold shadow-sm">Đã nộp</span>:
+                                                     status==='draft'?<span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-bold shadow-sm">Nháp</span>:
+                                                     status==='rejected'?<span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold shadow-sm">Yêu cầu sửa</span>:
+                                                     <span className="text-gray-300">-</span>}
+                                                     {status !== 'none' && (
+                                                         <div className="mt-2">
+                                                            <span className="text-[10px] text-gray-500 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{count} mã</span>
+                                                            <div className="text-[9px] text-gray-400 mt-1 flex justify-center items-center gap-1"><Icons.Clock size={8}/> {formatDate(review.updatedAt).split(',')[1]}</div>
+                                                         </div>
+                                                     )}
+                                                </td>
+                                            )
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- NEW LIST VIEW FOR ADMIN REVIEW ---
+        const AdminReviewViewer = ({ targetUser, periodId, onBack }) => {
+            const [reviewData, setReviewData] = useState(null);
+            const [masterData, setMasterData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [zoomImg, setZoomImg] = useState(null);
+
+            useEffect(() => {
+                const fetchAll = async () => {
+                    try {
+                        const masterDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'master_data', periodId));
+                        setMasterData(masterDoc.data());
+                        const reviewDoc = await getDoc(doc(db, 'artifacts', appId, 'users', targetUser.uid, 'reviews', periodId));
+                        setReviewData(reviewDoc.exists() ? reviewDoc.data() : { ratings: {}, status: 'none', updatedAt: null });
+                    } catch (e) { alert("Lỗi: " + e.message); } finally { setLoading(false); }
+                };
+                fetchAll();
+            }, [targetUser, periodId]);
+
+            const handleReject = async () => {
+                if(!confirm("Xác nhận yêu cầu nhân viên làm lại? Trạng thái bài sẽ chuyển thành 'Yêu cầu sửa lại'.")) return;
+                try {
+                    await updateDoc(doc(db, 'artifacts', appId, 'users', targetUser.uid, 'reviews', periodId), { status: 'rejected' });
+                    setReviewData({...reviewData, status: 'rejected'});
+                    alert("Đã trả bài!");
+                } catch(e) { alert("Lỗi: " + e.message); }
+            };
+
+            if (loading) return <div className="p-20 flex justify-center"><Icons.Loader2 /></div>;
+            
+            const assignments = masterData.assignments?.[targetUser.uid] || [];
+            const assignedProducts = masterData.products.filter(p => assignments.includes(p.id));
+            const ratings = reviewData.ratings || {};
+            const completedCount = Object.keys(ratings).filter(k => ratings[k].comment).length;
+            const criteria = [{k:'price',l:'Giá cả'},{k:'material',l:'Chất liệu'},{k:'design',l:'Mẫu mã'},{k:'color',l:'Màu sắc'},{k:'size',l:'Kích cỡ'},{k:'sellin',l:'Sell-in'},{k:'sellout',l:'Sell-out'}];
+
+            return (
+                <div className="container mx-auto p-6 max-w-[1600px]">
+                    <div className="sticky top-0 z-30 bg-[#fcfbf9]/95 backdrop-blur-md py-4 border-b border-gray-200 flex justify-between items-center mb-6 px-2 transition-all">
+                        <div className="flex items-center gap-4">
+                            <button onClick={onBack} className="p-2 bg-white rounded-full hover:bg-gray-100 border shadow-sm transition"><Icons.ChevronLeft/></button>
+                            <div>
+                                <h2 className="font-bold text-xl text-gray-800">{targetUser.name} - T{masterData.month}/{masterData.year}</h2>
+                                <div className="text-xs text-gray-500 flex gap-3 mt-0.5">
+                                    <span className="font-bold text-gray-700 bg-gray-200 px-2 py-0.5 rounded-md">Đã làm: {completedCount}/{assignedProducts.length}</span>
+                                    {reviewData.updatedAt && <span className="flex items-center gap-1"><Icons.Clock size={10}/> Nộp lúc: {formatDate(reviewData.updatedAt)}</span>}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <span className={`px-4 py-2 rounded-full text-sm font-bold border shadow-sm flex items-center gap-2 
+                                ${reviewData.status==='submitted'?'bg-green-100 text-green-700 border-green-200':
+                                  reviewData.status==='rejected'?'bg-red-100 text-red-700 border-red-200':
+                                  'bg-yellow-100 text-yellow-700 border-yellow-200'}`}>
+                                {reviewData.status==='submitted' ? 'Đã nộp' : reviewData.status==='rejected' ? 'Yêu cầu sửa lại' : 'Đang làm (Nháp)'}
+                            </span>
+                            {reviewData.status === 'submitted' && (
+                                <button onClick={handleReject} className="bg-red-50 text-red-600 px-4 py-2 rounded-full text-sm font-bold border border-red-200 hover:bg-red-100 flex items-center gap-2">
+                                    <Icons.RotateCcw size={16}/> Yêu cầu sửa lại
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                                <tr>
+                                    <th className="p-4 w-[200px]">Sản phẩm</th>
+                                    <th className="p-4 text-center w-[80px]">Điểm TB</th>
+                                    {/* Updated: Individual Columns for Criteria */}
+                                    {criteria.map(c => <th key={c.k} className="p-4 text-center w-[80px]">{c.l}</th>)}
+                                    <th className="p-4">Nhận xét</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {assignedProducts.map(p => {
+                                    const r = ratings[p.id] || { average: 0 };
+                                    return (
+                                        <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4 align-top">
+                                                <div className="flex gap-3">
+                                                    <div className="w-16 h-16 flex-shrink-0 cursor-zoom-in border rounded overflow-hidden" onClick={() => setZoomImg(p.link)}>
+                                                        <img src={p.link} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-gray-800">{p.id}</div>
+                                                        <div className="text-xs text-gray-500 line-clamp-2">{p.name}</div>
+                                                        <span className="inline-block mt-1 text-[10px] bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-bold">{p.channel}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-center align-top">
+                                                <div className="bg-yellow-50 text-yellow-700 font-bold text-lg px-3 py-2 rounded-lg border border-yellow-200 inline-block">
+                                                    {r.average}
+                                                </div>
+                                            </td>
+                                            {/* Updated: Display numeric score instead of stars */}
+                                            {criteria.map(c => (
+                                                <td key={c.k} className="p-4 text-center align-top font-medium text-gray-700">
+                                                    {r[c.k] || 0}
+                                                </td>
+                                            ))}
+                                            <td className="p-4 align-top">
+                                                <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700 italic min-h-[60px]">
+                                                    {r.comment || <span className="text-gray-400">Chưa có nhận xét</span>}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                        {assignedProducts.length === 0 && <div className="p-10 text-center text-gray-400">Không có sản phẩm nào.</div>}
+                    </div>
+                    
+                    <ImageModal src={zoomImg} onClose={() => setZoomImg(null)} />
+                </div>
+            );
+        };
+
+        const LoginScreen = ({ onLoginSuccess }) => {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+                try {
+                    const usersRef = collection(db, 'artifacts', appId, 'users');
+                    const q = query(usersRef, where('email', '==', email.trim()), where('password', '==', password.trim()));
+                    const snapshot = await getDocs(q);
+                    if (snapshot.empty) throw new Error("Sai thông tin đăng nhập.");
+                    const userDoc = snapshot.docs[0];
+                    onLoginSuccess({ uid: userDoc.id, ...userDoc.data() });
+                } catch (err) { setError(err.message); } finally { setLoading(false); }
+            };
+
+            return (
+                <div className="flex items-center justify-center min-h-screen p-4 bg-[#fcfbf9]">
+                    <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-xl border border-gray-100">
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-bold text-gray-800 mb-2 tracking-tight">NOUS</h1>
+                            <p className="text-xs uppercase tracking-widest text-gray-400 font-semibold">Product Review System</p>
+                        </div>
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <input type="email" required className="w-full nous-input p-3" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" />
+                            <input type="password" required className="w-full nous-input p-3" value={password} onChange={e => setPassword(e.target.value)} placeholder="Mật khẩu" />
+                            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl">{error}</div>}
+                            <button type="submit" disabled={loading} className="w-full nous-btn-primary py-3 font-semibold flex justify-center">
+                                {loading ? <Icons.Loader2 /> : 'Đăng nhập'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const ReviewScreen = ({ user, period, onBack }) => {
+            const [ratings, setRatings] = useState({});
+            const [status, setStatus] = useState('none');
+            const [updatedAt, setUpdatedAt] = useState(null);
+            const [saving, setSaving] = useState(false);
+            const [zoomImg, setZoomImg] = useState(null);
+            
+            const assignments = period.assignments?.[user.uid] || [];
+            const assignedProducts = period.products.filter(p => assignments.includes(p.id));
+
+            useEffect(() => {
+                getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', period.id)).then(s => {
+                    if (s.exists()) { 
+                        const d = s.data();
+                        setRatings(d.ratings || {}); 
+                        setStatus(d.status); 
+                        setUpdatedAt(d.updatedAt);
+                    }
+                });
+            }, []);
+
+            const updateRating = (pid, k, v) => {
+                if(status === 'submitted') return;
+                setRatings(prev => {
+                    const pr = prev[pid] || { price:0, material:0, design:0, color:0, size:0, sellin:0, sellout:0, comment:'' };
+                    const newPr = { ...pr, [k]: v };
+                    const scores = [newPr.price, newPr.material, newPr.design, newPr.color, newPr.size, newPr.sellin, newPr.sellout].map(n=>n||0);
+                    newPr.average = (scores.reduce((a,b)=>a+(b||1),0)/7).toFixed(1);
+                    return { ...prev, [pid]: newPr };
+                });
+            };
+
+            const criteriaKeys = ['price', 'material', 'design', 'color', 'size', 'sellin', 'sellout'];
+
+            const save = async (newStatus) => {
+                if (newStatus === 'submitted') {
+                    const missing = assignedProducts.filter(p => {
+                        const r = ratings[p.id];
+                        if (!r) return true;
+                        if (!r.comment || !r.comment.trim()) return true;
+                        const missingScore = criteriaKeys.some(k => !r[k]);
+                        if (missingScore) return true;
+                        return false;
+                    });
+
+                    if (missing.length > 0) return alert(`Bạn chưa hoàn thành ${missing.length} mã màu. \nVui lòng điền đủ tất cả các sao và nhận xét cho từng mã.`);
+                    if (!confirm("Nộp bài? Bạn sẽ không thể sửa sau khi nộp.")) return;
+                }
+                setSaving(true);
+                const now = new Date().toISOString();
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', period.id), { status: newStatus, ratings, updatedAt: now }, { merge: true });
+                    setStatus(newStatus); setUpdatedAt(now);
+                    if (newStatus === 'submitted') { alert("Nộp thành công!"); onBack(); }
+                } catch(e) { alert("Lỗi: " + e.message); } finally { setSaving(false); }
+            };
+
+            const isReadOnly = status === 'submitted';
+            const completedCount = assignedProducts.filter(p => {
+                const r = ratings[p.id];
+                return r && r.comment && !criteriaKeys.some(k => !r[k]);
+            }).length;
+
+            const criteria = [
+                {k:'price',l:'Giá cả'},
+                {k:'material',l:'Chất liệu'},
+                {k:'design',l:'Mẫu mã'},
+                {k:'color',l:'Màu sắc'},
+                {k:'size',l:'Dải size'},
+                {k:'sellin',l:'Sell-in'},
+                {k:'sellout',l:'Sell-out'}
+            ];
+
+            return (
+                <div className="container mx-auto p-4 pb-20 max-w-[1600px]">
+                    <div className="sticky top-0 z-30 bg-[#fcfbf9]/95 backdrop-blur-md py-4 border-b border-gray-200 flex justify-between items-center mb-6 px-2 transition-all">
+                        <div className="flex items-center gap-4">
+                            <button onClick={onBack} className="p-2 bg-white rounded-full hover:bg-gray-100 border shadow-sm transition"><Icons.ChevronLeft/></button>
+                            <div>
+                                <h2 className="font-bold text-xl text-gray-800">T{period.month}/{period.year}</h2>
+                                <div className="text-xs text-gray-500 flex gap-3 mt-0.5">
+                                    <span className="font-bold text-gray-700 bg-gray-200 px-2 py-0.5 rounded-md">Đã làm: {completedCount}/{assignedProducts.length}</span>
+                                    {updatedAt && <span className="flex items-center gap-1"><Icons.Clock size={10}/> Lưu: {formatDate(updatedAt)}</span>}
+                                </div>
+                            </div>
+                        </div>
+                        {!isReadOnly ? (
+                            <div className="flex gap-3 items-center">
+                                {status === 'rejected' && <span className="bg-red-100 text-red-700 px-4 py-2 rounded-full text-xs font-bold border border-red-200 shadow-sm">Yêu cầu sửa lại</span>}
+                                <button onClick={()=>save('draft')} disabled={saving} className="nous-btn-secondary px-5 py-2 text-sm font-bold shadow-sm">Lưu nháp</button>
+                                <button onClick={()=>save('submitted')} disabled={saving} className="nous-btn-primary px-5 py-2 text-sm font-bold shadow-lg">Nộp bài</button>
+                            </div>
+                        ) : <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-bold border border-green-200 shadow-sm flex items-center gap-2"><Icons.CheckCircle size={16}/> Đã nộp</span>}
+                    </div>
+
+                    {assignedProducts.length === 0 ? <p className="text-center text-gray-500 mt-20">Không có sản phẩm nào được phân công cho bạn.</p> : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                            {assignedProducts.map(p => {
+                                const r = ratings[p.id] || { average: 1 };
+                                return (
+                                    <div key={p.id} className="nous-card flex flex-col overflow-hidden group">
+                                        <div className="aspect-square relative bg-gray-50 cursor-zoom-in overflow-hidden" onClick={() => setZoomImg(p.link)}>
+                                            <img src={p.link} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" onContextMenu={e => e.preventDefault()} />
+                                            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur text-yellow-600 text-xs font-bold px-2 py-1 rounded-lg shadow-md border border-white">{r.average} ★</div>
+                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10 text-white">
+                                                <div className="font-bold text-base shadow-black drop-shadow-md">{p.id}</div>
+                                                <div className="text-xs opacity-90 truncate">{p.name}</div>
+                                            </div>
+                                        </div>
+                                        <div className="p-4 flex flex-col gap-3 bg-white flex-grow">
+                                            <div className="space-y-2">
+                                                {criteria.map(c => (
+                                                    <div key={c.k} className="flex justify-between items-center text-xs">
+                                                        <span className="text-gray-400 font-semibold w-20 whitespace-nowrap overflow-hidden">{c.l}</span>
+                                                        <StarRating value={r[c.k]||0} onChange={v=>updateRating(p.id,c.k,v)} readOnly={isReadOnly} size={4}/>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-2 pt-3 border-t border-gray-100">
+                                                <textarea 
+                                                    className="w-full text-xs p-3 bg-gray-50 border-0 rounded-xl resize-none focus:bg-white focus:ring-2 ring-gray-200 outline-none transition-all h-20 font-medium text-gray-700 placeholder-gray-400"
+                                                    placeholder="Nhập đánh giá..." value={r.comment||''} onChange={e=>updateRating(p.id,'comment',e.target.value)} disabled={isReadOnly}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                    <ImageModal src={zoomImg} onClose={() => setZoomImg(null)} />
+                </div>
+            );
+        };
+
+        const ChangePasswordModal = ({ user, onClose }) => {
+            const [formData, setFormData] = useState({ oldPass: '', newPass: '', confirmPass: '' });
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setError(''); setSuccess('');
+                
+                if (formData.newPass !== formData.confirmPass) {
+                    setError('Mật khẩu mới không khớp.');
+                    return;
+                }
+                if (formData.newPass.length < 6) {
+                    setError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+                    return;
+                }
+
+                setLoading(true);
+                try {
+                    if (formData.oldPass !== user.password) {
+                        throw new Error('Mật khẩu cũ không chính xác.');
+                    }
+
+                    await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid), {
+                        password: formData.newPass,
+                        updatedAt: new Date().toISOString()
+                    });
+
+                    setSuccess('Đổi mật khẩu thành công! Vui lòng đăng nhập lại.');
+                    
+                    setTimeout(() => {
+                        onClose();
+                        window.location.reload(); 
+                    }, 1500);
+
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                            <h3 className="font-bold text-lg text-gray-800">Đổi Mật Khẩu</h3>
+                            <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition"><Icons.X size={20}/></button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold mb-1 text-gray-500">Mật khẩu cũ</label>
+                                <input type="password" required className="w-full nous-input p-3" 
+                                    value={formData.oldPass} 
+                                    onChange={e => setFormData({...formData, oldPass: e.target.value})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold mb-1 text-gray-500">Mật khẩu mới</label>
+                                <input type="password" required className="w-full nous-input p-3" 
+                                    value={formData.newPass} 
+                                    onChange={e => setFormData({...formData, newPass: e.target.value})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold mb-1 text-gray-500">Xác nhận mật khẩu mới</label>
+                                <input type="password" required className="w-full nous-input p-3" 
+                                    value={formData.confirmPass} 
+                                    onChange={e => setFormData({...formData, confirmPass: e.target.value})} 
+                                />
+                            </div>
+
+                            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg font-medium text-center">{error}</div>}
+                            {success && <div className="p-3 bg-green-50 text-green-600 text-sm rounded-lg font-medium text-center">{success}</div>}
+
+                            <button type="submit" disabled={loading || success} className="w-full nous-btn-primary py-3 font-bold flex justify-center items-center gap-2">
+                                {loading && <Icons.Loader2 />} Xác nhận thay đổi
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        const UserDashboard = ({ user, onLogout, onSelectPeriod }) => {
+            const [periods, setPeriods] = useState([]);
+            const [showChangePass, setShowChangePass] = useState(false); 
+            
+            useEffect(() => {
+                const unsub = onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'master_data')), (snap) => {
+                    const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.year - a.year) || (b.month - a.month));
+                    setPeriods(data);
+                });
+                return () => unsub();
+            }, []);
+
+            return (
+                <div className="container mx-auto p-6 max-w-4xl">
+                    <header className="flex justify-between items-center mb-10 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div>
+                            <h1 className="font-bold text-2xl text-gray-800 tracking-tight">Chào, {user.name}</h1>
+                            <p className="text-sm text-gray-500 font-medium">Danh sách các kỳ đánh giá cần thực hiện</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setShowChangePass(true)} className="nous-btn-secondary px-4 py-2 text-sm font-bold flex items-center gap-2">
+                                <Icons.RotateCcw size={14}/> Đổi mật khẩu
+                            </button>
+                            <button onClick={onLogout} className="nous-btn-secondary px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50">Đăng xuất</button>
+                        </div>
+                    </header>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {periods.map(p => {
+                            const assignedCount = (p.assignments?.[user.uid] || []).length;
+                            return (
+                                <UserPeriodItem key={p.id} period={p} userId={user.uid} assignedCount={assignedCount} onSelect={onSelectPeriod} />
+                            )
+                        })}
+                    </div>
+
+                    {showChangePass && (
+                        <ChangePasswordModal user={user} onClose={() => setShowChangePass(false)} />
+                    )}
+                </div>
+            );
+        };
+
+        const UserPeriodItem = ({ period, userId, assignedCount, onSelect }) => {
+            const [status, setStatus] = useState('loading');
+            const [data, setData] = useState(null);
+
+            useEffect(() => {
+                let mounted = true;
+                const fetch = async () => {
+                    const d = await getDoc(doc(db, 'artifacts', appId, 'users', userId, 'reviews', period.id));
+                    if(mounted) {
+                        if (d.exists()) {
+                            setData(d.data());
+                            setStatus(d.data().status);
+                        } else {
+                            setStatus('none');
+                        }
+                    }
+                };
+                fetch();
+                return () => mounted = false;
+            }, [period, userId]);
+
+            const criteriaKeys = ['price', 'material', 'design', 'color', 'size', 'sellin', 'sellout'];
+            const completedCount = data && data.ratings ? Object.keys(data.ratings).filter(pid => {
+                const r = data.ratings[pid];
+                return r.comment && !criteriaKeys.some(k => !r[k]);
+            }).length : 0;
+
+            return (
+                <div onClick={() => onSelect(period)} className="nous-card p-6 cursor-pointer group relative overflow-hidden h-full flex flex-col justify-between">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-100 rounded-full -mr-12 -mt-12 opacity-50 transition-transform group-hover:scale-150"></div>
+                    <div className="relative z-10">
+                        <h3 className="font-bold text-2xl text-gray-800 mb-1">Tháng {period.month}, {period.year}</h3>
+                        <p className="text-sm text-gray-500 font-medium flex items-center gap-2 mb-4"><Icons.Package size={14}/> {assignedCount} mã màu được phân công</p>
+                        
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 
+                                    ${status==='submitted'?'bg-green-100 text-green-700':
+                                      status==='draft'?'bg-yellow-100 text-yellow-700':
+                                      status==='rejected'?'bg-red-100 text-red-700':
+                                      'bg-gray-100 text-gray-500'}`}>
+                                    {status==='submitted'?'Đã nộp':status==='draft'?'Đang làm':status==='rejected'?'Yêu cầu sửa':'Chưa làm'}
+                                </div>
+                                {status !== 'none' && (
+                                    <div className="text-xs text-gray-400">
+                                        <div>Đã xong: <b className="text-gray-800">{completedCount}/{assignedCount}</b></div>
+                                        {data?.updatedAt && <div>Lưu: {formatDate(data.updatedAt)}</div>}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="text-blue-600 bg-blue-50 p-2 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [dbUser, setDbUser] = useState(null);
+            const [view, setView] = useState('login'); 
+            const handleLogout = () => { setDbUser(null); setView('login'); };
+            const handleLoginSuccess = (userData) => { setDbUser(userData); setView(userData.role === 'admin' ? 'admin' : 'user'); };
+
+            return (
+                <div className="min-h-screen font-body text-gray-700">
+                    {view === 'login' && <LoginScreen onLoginSuccess={handleLoginSuccess} />}
+                    {view === 'admin' && <AdminDashboard user={dbUser} onLogout={handleLogout} />}
+                    {view === 'user' && <UserDashboard user={dbUser} onLogout={handleLogout} onSelectPeriod={(p)=>setView({type:'review',period:p})} />}
+                    {view.type === 'review' && <ReviewScreen user={dbUser} period={view.period} onBack={()=>setView('user')} />}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
