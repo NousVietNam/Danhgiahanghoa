@@ -202,25 +202,7 @@
 
                 let csvContent = "\uFEFF"; 
                 csvContent += "Nhân viên,Email,Kênh,Mã màu,Tên hàng,Kênh SP,Giá,Giá cả,Chất liệu,Mẫu mã,Màu sắc,Size,Sell-in,Sell-out,Điểm TB,Nhận xét,Trạng thái,Ngày cập nhật\n";
-                // --- ĐOẠN CODE MỚI: Đặt ngay sau các dòng khai báo useState ---
-    
-    // 1. Định nghĩa danh sách đầy đủ
-    const allCriteria = [
-        {k:'price',l:'Giá cả'},
-        {k:'material',l:'Chất liệu'},
-        {k:'design',l:'Mẫu mã'},
-        {k:'color',l:'Màu sắc'},
-        {k:'size',l:'Dải size'},
-        {k:'sellin',l:'Sell-in'},
-        {k:'sellout',l:'Sell-out'}
-    ];
-
-    // 2. Lọc bỏ 'sellin' nếu user là STORE hoặc ECOM
-    const activeCriteria = allCriteria.filter(c => {
-        if (c.k === 'sellin' && ['STORE', 'ECOM'].includes(user.salesChannel)) return false;
-        return true;
-    });
-    // -----------------------------------------------------------
+                
 
                 for (const user of users) {
                     const reviewDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'reviews', periodId));
@@ -1066,6 +1048,23 @@
             const [updatedAt, setUpdatedAt] = useState(null);
             const [saving, setSaving] = useState(false);
             const [zoomImg, setZoomImg] = useState(null);
+// --- DÁN ĐOẠN CODE VÀO ĐÂY (Dòng mới thêm) ---
+    const allCriteria = [
+        {k:'price',l:'Giá cả'},
+        {k:'material',l:'Chất liệu'},
+        {k:'design',l:'Mẫu mã'},
+        {k:'color',l:'Màu sắc'},
+        {k:'size',l:'Dải size'}, // Lưu ý: Bạn đang để 'Dải size', code cũ là 'Kích cỡ', cái nào cũng được
+        {k:'sellin',l:'Sell-in'},
+        {k:'sellout',l:'Sell-out'}
+    ];
+
+    // Lọc bỏ 'sellin' nếu user là STORE hoặc ECOM
+    const activeCriteria = allCriteria.filter(c => {
+        if (c.k === 'sellin' && ['STORE', 'ECOM'].includes(user.salesChannel)) return false;
+        return true;
+    });
+    // ------------------------------------------------
             
             const assignments = period.assignments?.[user.uid] || [];
             const assignedProducts = period.products.filter(p => assignments.includes(p.id));
@@ -1097,7 +1096,7 @@
         });
     };
 
-            const criteriaKeys = ['price', 'material', 'design', 'color', 'size', 'sellin', 'sellout'];
+        
 
             const save = async (newStatus) => {
         if (newStatus === 'submitted') {
